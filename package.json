@@ -1,7 +1,7 @@
 {
-  "name": "pi-balance",
+  "name": "pi-usage",
   "version": "0.1.0",
-  "description": "Pi balance and quota viewer for DeepSeek and OpenAI Codex",
+  "description": "Pi usage viewer for DeepSeek balances and OpenAI Codex quotas",
   "type": "module",
   "keywords": [
     "pi-package",

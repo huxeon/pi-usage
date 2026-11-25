@@ -1,4 +1,4 @@
-import { BalanceError, fetchAccountJson, isRecord } from "./request.ts";
+import { UsageError, fetchAccountJson, isRecord } from "./request.ts";
 
 const USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const AUTH_CLAIM = "https://api.openai.com/auth";
@@ -35,18 +35,18 @@ function getAccountId(token: string): string {
   } catch {
     // Don't expose the token or parser diagnostics.
   }
-  throw new BalanceError(`No valid Codex OAuth access token available. ${LOGIN_HINT}`);
+  throw new UsageError(`No valid Codex OAuth access token available. ${LOGIN_HINT}`);
 }
 
 function parseWindow(value: unknown): UsageWindow | null {
   if (value == null) return null;
-  if (!isRecord(value)) throw new BalanceError(INVALID_DATA);
+  if (!isRecord(value)) throw new UsageError(INVALID_DATA);
   const { used_percent: used, limit_window_seconds: duration, reset_at: reset } = value;
   if (typeof used !== "number" || !Number.isFinite(used) || used < 0 || used > 100 ||
       typeof duration !== "number" || !Number.isSafeInteger(duration) || duration <= 0 ||
       (reset != null && (typeof reset !== "number" || !Number.isSafeInteger(reset) ||
         reset < 0 || reset > 8_640_000_000_000))) {
-    throw new BalanceError(INVALID_DATA);
+    throw new UsageError(INVALID_DATA);
   }
   return { usedPercent: used, durationSeconds: duration, resetAt: reset ?? null };
 }
@@ -54,7 +54,7 @@ function parseWindow(value: unknown): UsageWindow | null {
 function parseCredits(value: unknown): string | null {
   if (value == null) return null;
   if (!isRecord(value) || typeof value.has_credits !== "boolean" || typeof value.unlimited !== "boolean") {
-    throw new BalanceError(INVALID_DATA);
+    throw new UsageError(INVALID_DATA);
   }
   if (value.unlimited) return "Unlimited";
   if (!value.has_credits || value.balance == null) return null;
@@ -62,16 +62,16 @@ function parseCredits(value: unknown): string | null {
   if (typeof balance === "number" && Number.isFinite(balance) && balance >= 0) return String(balance);
   if (typeof balance === "string" && balance.length <= 64 && balance.trim() === balance &&
       /^\d+(?:\.\d+)?$/.test(balance)) return balance;
-  throw new BalanceError(INVALID_DATA);
+  throw new UsageError(INVALID_DATA);
 }
 
 export function parseCodexUsage(value: unknown): CodexUsage {
   if (!isRecord(value) || typeof value.plan_type !== "string" ||
       value.plan_type.trim() !== value.plan_type || !/^[a-z0-9_-]{1,64}$/i.test(value.plan_type)) {
-    throw new BalanceError(INVALID_DATA);
+    throw new UsageError(INVALID_DATA);
   }
   const limits = value.rate_limit;
-  if (limits != null && !isRecord(limits)) throw new BalanceError(INVALID_DATA);
+  if (limits != null && !isRecord(limits)) throw new UsageError(INVALID_DATA);
   const windows = [parseWindow(limits?.primary_window), parseWindow(limits?.secondary_window)]
     .filter(window => window !== null);
   return {
@@ -87,7 +87,7 @@ export async function fetchCodexUsage(
   signal?: AbortSignal,
   request: typeof fetch = fetch,
 ): Promise<CodexUsage> {
-  if (signal?.aborted) throw new BalanceError("Balance query cancelled.");
+  if (signal?.aborted) throw new UsageError("Usage query cancelled.");
   const accountId = getAccountId(accessToken);
   const data = await fetchAccountJson({
     service: "Codex",

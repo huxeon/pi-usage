@@ -1,4 +1,4 @@
-import { BalanceError, fetchAccountJson, isRecord } from "./request.ts";
+import { UsageError, fetchAccountJson, isRecord } from "./request.ts";
 
 export interface BalanceRequestOptions {
   apiKey: string;
@@ -29,13 +29,13 @@ function isAmount(value: unknown): value is string {
 export function parseBalance(value: unknown): Balance {
   if (!isRecord(value) || typeof value.is_available !== "boolean" ||
       !Array.isArray(value.balance_infos)) {
-    throw new BalanceError(INVALID_DATA_MESSAGE);
+    throw new UsageError(INVALID_DATA_MESSAGE);
   }
   const infos = value.balance_infos.map((info: unknown): BalanceInfo => {
     if (!isRecord(info) || (info.currency !== "CNY" && info.currency !== "USD") ||
         !isAmount(info.total_balance) || !isAmount(info.granted_balance) ||
         !isAmount(info.topped_up_balance)) {
-      throw new BalanceError(INVALID_DATA_MESSAGE);
+      throw new UsageError(INVALID_DATA_MESSAGE);
     }
     return {
       currency: info.currency,

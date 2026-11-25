@@ -5,8 +5,8 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 import { KeybindingsManager, TUI_KEYBINDINGS, visibleWidth } from "@earendil-works/pi-tui";
 import type { Balance } from "../src/balance.ts";
 import { parseCodexUsage } from "../src/codex.ts";
-import { BalanceError } from "../src/request.ts";
-import { BalancePanel } from "../src/ui.ts";
+import { UsageError } from "../src/request.ts";
+import { UsagePanel } from "../src/ui.ts";
 
 // ANSI styling ensures width tests exercise styled CJK content, not just plain text.
 const theme = {
@@ -18,7 +18,7 @@ const balance: Balance = { is_available: true, balance_infos: [
   { currency: "USD", total_balance: "0.00000001", granted_balance: "0.00", topped_up_balance: "0.00000001" },
 ] };
 function harness(
-  query: ConstructorParameters<typeof BalancePanel>[0]["query"],
+  query: ConstructorParameters<typeof UsagePanel>[0]["query"],
   customCancel = false,
   title = "DeepSeek balance",
 ) {
@@ -26,11 +26,11 @@ function harness(
   let renders = 0;
   const keybindings = new KeybindingsManager(TUI_KEYBINDINGS,
     customCancel ? { "tui.select.cancel": "ctrl+q", "tui.select.confirm": "ctrl+r" } : undefined);
-  const panel = new BalancePanel({ title, theme, keybindings, query,
+  const panel = new UsagePanel({ title, theme, keybindings, query,
     requestRender: () => { renders++; }, done: () => { closed++; } });
   return { panel, get closed() { return closed; }, get renders() { return renders; } };
 }
-const plain = (panel: BalancePanel, width = 80) => panel.render(width).map(stripVTControlCharacters).join("\n");
+const plain = (panel: UsagePanel, width = 80) => panel.render(width).map(stripVTControlCharacters).join("\n");
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 
 test("精简余额面板：边框、金额、双币种和快捷键", async () => {
@@ -110,7 +110,7 @@ test("加载中立即显示面板，重复刷新不并发，返回可取消且�
     return new Promise<Balance>(done => { resolve = done; });
   });
   const pending = h.panel.refresh();
-  assert.match(plain(h.panel), /Loading balance/);
+  assert.match(plain(h.panel), /Loading usage/);
   assert.match(plain(h.panel), /close/);
   assert.ok(!plain(h.panel).includes("refresh"));
   h.panel.handleInput("r");
@@ -131,7 +131,7 @@ test("错误在面板内显示，可按 r/Enter 重试，失败时不展示旧�
   let queries = 0;
   const h = harness(async () => {
     queries++;
-    if (queries === 2) throw new BalanceError("DeepSeek request timed out. Please try again.");
+    if (queries === 2) throw new UsageError("DeepSeek request timed out. Please try again.");
     return balance;
   });
   await h.panel.refresh();
@@ -147,7 +147,7 @@ test("错误在面板内显示，可按 r/Enter 重试，失败时不展示旧�
 
 test("刷新键去重，禁用键位时不生成空操作提示", async () => {
   for (const confirm of [[], ["r" as const]]) {
-    const panel = new BalancePanel({
+    const panel = new UsagePanel({
       title: "DeepSeek balance",
       theme,
       keybindings: { matches: () => false, getKeys: action => action === "tui.select.confirm" ? confirm : [] },
@@ -197,6 +197,6 @@ test("空余额、不可用、未知异常及自定义退出键", async () => {
   assert.equal(h.closed, 1);
   const failed = harness(async () => { throw new Error("sk-secret"); });
   await failed.panel.refresh();
-  assert.match(plain(failed.panel), /Failed to fetch balance/);
+  assert.match(plain(failed.panel), /Failed to fetch usage/);
   assert.ok(!plain(failed.panel).includes("sk-secret"));
 });

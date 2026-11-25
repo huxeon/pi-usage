@@ -1,7 +1,7 @@
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-export class BalanceError extends Error {
-  override name = "BalanceError";
+export class UsageError extends Error {
+  override name = "UsageError";
 }
 
 interface RequestOptions {
@@ -34,22 +34,22 @@ export async function fetchAccountJson(
         ? `Authentication failed. ${authHint}`
         : response.status === 429 ? "Rate limit exceeded. Please try again later."
         : "Service unavailable. Please try again later.";
-      throw new BalanceError(`${service} request failed (HTTP ${response.status}): ${hint}`);
+      throw new UsageError(`${service} request failed (HTTP ${response.status}): ${hint}`);
     }
     let data: unknown;
     try {
       data = await response.json();
     } catch {
       if (combined.aborted) throw combined.reason;
-      throw new BalanceError(`${service} returned invalid JSON.`);
+      throw new UsageError(`${service} returned invalid JSON.`);
     }
     combined.throwIfAborted();
     return data;
   } catch (error) {
-    if (signal?.aborted) throw new BalanceError("Balance query cancelled.");
-    if (timeout.aborted) throw new BalanceError(`${service} balance query timed out. Please try again.`);
-    if (error instanceof BalanceError) throw error;
-    throw new BalanceError(`Unable to connect to ${service}. Check your network connection.`);
+    if (signal?.aborted) throw new UsageError("Usage query cancelled.");
+    if (timeout.aborted) throw new UsageError(`${service} usage query timed out. Please try again.`);
+    if (error instanceof UsageError) throw error;
+    throw new UsageError(`Unable to connect to ${service}. Check your network connection.`);
   }
 }
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ExtensionAPI, ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
 import { KeybindingsManager, TUI_KEYBINDINGS } from "@earendil-works/pi-tui";
-import type { BalancePanel } from "../src/ui.ts";
+import type { UsagePanel } from "../src/ui.ts";
 import extension from "../index.ts";
 
 function harness(resolveKey: (provider: string) => Promise<string | undefined>) {
@@ -13,7 +13,7 @@ function harness(resolveKey: (provider: string) => Promise<string | undefined>) 
   let shutdown!: () => void;
   const pi = {
     registerCommand(name: string, options: { handler: typeof handler }) {
-      assert.equal(name, "balance");
+      assert.equal(name, "usage");
       handler = options.handler;
     },
     on(event: string, callback: () => void) {
@@ -32,7 +32,7 @@ function harness(resolveKey: (provider: string) => Promise<string | undefined>) 
         severities.push(severity);
       },
       setStatus(key: string, text: string | undefined) {
-        assert.equal(key, "pi-balance");
+        assert.equal(key, "pi-usage");
         statuses.push(text);
       },
     },
@@ -124,7 +124,7 @@ test("切换模型后只查当前提供商，未选模型或不支持时不读�
     assert.match(h.notices.at(-1)!, /not supported.*"openai"/);
     assert.equal(h.severities.at(-1), "error");
     await h.run("openai-codex");
-    assert.match(h.notices.at(-1)!, /Usage: \/balance/);
+    assert.match(h.notices.at(-1)!, /Usage: \/usage/);
     assert.deepEqual(providers, []);
     assert.deepEqual(requests, []);
 
@@ -145,7 +145,7 @@ test("切换模型后只查当前提供商，未选模型或不支持时不读�
 test("TUI 命令直接打开交互面板，不发送结果通知，结束会话关闭面板", async () => {
   const previousFetch = globalThis.fetch;
   const h = harness(async () => "sk-tui-test");
-  let panel!: BalancePanel;
+  let panel!: UsagePanel;
   let renders = 0;
   const theme = { fg: (_color: string, value: string) => value, bold: (value: string) => value } as unknown as Theme;
   const keybindings = new KeybindingsManager(TUI_KEYBINDINGS);
@@ -154,7 +154,7 @@ test("TUI 命令直接打开交互面板，不发送结果通知，结束会话�
     mode: "tui",
     ui: {
       ...h.ctx.ui,
-      custom: async (factory: (tui: { requestRender: () => void }, theme: Theme, keys: KeybindingsManager, done: () => void) => BalancePanel) =>
+      custom: async (factory: (tui: { requestRender: () => void }, theme: Theme, keys: KeybindingsManager, done: () => void) => UsagePanel) =>
         new Promise<void>(done => {
           panel = factory({ requestRender: () => { renders++; } }, theme, keybindings, done);
         }),
@@ -163,7 +163,7 @@ test("TUI 命令直接打开交互面板，不发送结果通知，结束会话�
   try {
     globalThis.fetch = async () => Response.json({ is_available: true, balance_infos: [] });
     const pending = h.handler("", ctx);
-    assert.match(panel.render(80).join("\n"), /Loading balance/);
+    assert.match(panel.render(80).join("\n"), /Loading usage/);
     await new Promise<void>(resolve => setImmediate(resolve));
     assert.match(panel.render(80).join("\n"), /No balance details available/);
     assert.deepEqual(h.notices, []);
@@ -188,7 +188,7 @@ test("TUI 创建期间防重复；会话结束后迟到的工厂不得查询凭�
     mode: "tui",
     ui: {
       ...h.ctx.ui,
-      custom: async (factory: (tui: { requestRender: () => void }, theme: Theme, keys: KeybindingsManager, done: () => void) => BalancePanel) =>
+      custom: async (factory: (tui: { requestRender: () => void }, theme: Theme, keys: KeybindingsManager, done: () => void) => UsagePanel) =>
         new Promise<void>(done => {
           creations++;
           open = () => { factory({ requestRender: () => {} }, theme, keybindings, done); };
@@ -213,7 +213,7 @@ test("自定义 UI 创建失败会脱敏通知并释放命令锁", async () => {
     ui: { ...h.ctx.ui, custom: async () => { throw new Error("sk-ui-sensitive"); } },
   } as unknown as ExtensionCommandContext;
   await h.handler("", ctx);
-  assert.deepEqual(h.notices, ["Failed to fetch balance."]);
+  assert.deepEqual(h.notices, ["Failed to fetch usage."]);
   await h.run();
   assert.match(h.notices.at(-1)!, /DEEPSEEK_API_KEY/);
 });
@@ -244,7 +244,7 @@ test("凭据缺失或解析失败时不请求 API，不泄露解析器异常", a
     assert.equal(missing.statuses.at(-1), undefined);
     const failing = harness(async () => { throw new Error("sk-sensitive-parser-error"); });
     await failing.run();
-    assert.equal(failing.notices.at(-1), "Failed to fetch balance.");
+    assert.equal(failing.notices.at(-1), "Failed to fetch usage.");
     assert.equal(failing.statuses.at(-1), undefined);
   } finally {
     globalThis.fetch = previousFetch;

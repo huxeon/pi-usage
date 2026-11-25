@@ -2,7 +2,7 @@ import { DynamicBorder, type Theme } from "@earendil-works/pi-coding-agent";
 import { Container, Spacer, Text, matchesKey, truncateToWidth, visibleWidth, type KeybindingsManager } from "@earendil-works/pi-tui";
 import type { Balance } from "./balance.ts";
 import { summarizeWindow, type CodexUsage } from "./codex.ts";
-import { BalanceError } from "./request.ts";
+import { UsageError } from "./request.ts";
 
 type AccountDetails = Balance | CodexUsage;
 
@@ -18,11 +18,11 @@ interface PanelOptions {
 type PanelState =
   | { kind: "idle" }
   | { kind: "loading"; controller: AbortController }
-  | { kind: "ready"; balance: AccountDetails }
+  | { kind: "ready"; details: AccountDetails }
   | { kind: "error"; message: string };
 
-/** Inline balance view following Pi's built-in dialog conventions. */
-export class BalancePanel {
+/** Inline usage view following Pi's built-in dialog conventions. */
+export class UsagePanel {
   private readonly options: PanelOptions;
   private state: PanelState = { kind: "idle" };
   private closed = false;
@@ -37,14 +37,14 @@ export class BalancePanel {
     this.state = { kind: "loading", controller };
     this.options.requestRender();
     try {
-      const balance = await this.options.query(controller.signal);
+      const details = await this.options.query(controller.signal);
       if (this.closed || controller.signal.aborted) return;
-      this.state = { kind: "ready", balance };
+      this.state = { kind: "ready", details };
     } catch (error) {
       if (this.closed || controller.signal.aborted) return;
       this.state = {
         kind: "error",
-        message: error instanceof BalanceError ? error.message : "Failed to fetch balance. Please try again.",
+        message: error instanceof UsageError ? error.message : "Failed to fetch usage. Please try again.",
       };
     } finally {
       if (!this.closed) this.options.requestRender();
@@ -77,14 +77,14 @@ export class BalancePanel {
     const text = (value: string) => frame.addChild(new Text(value, 1, 0));
     frame.addChild(border());
     frame.addChild(new Spacer(1));
-    const details = state.kind === "ready" ? state.balance : undefined;
+    const details = state.kind === "ready" ? state.details : undefined;
     const usage = details && !("balance_infos" in details) ? details : undefined;
     const title = this.options.title;
     text(th.fg("accent", th.bold(title)) + (usage ? th.fg("muted", ` · ${usage.plan}`) : ""));
     frame.addChild(new Spacer(1));
 
     if (state.kind === "loading") {
-      text(th.fg("muted", "Loading balance…"));
+      text(th.fg("muted", "Loading usage…"));
     } else if (state.kind === "error") {
       text(th.fg("error", state.message));
     } else if (details && "balance_infos" in details) {

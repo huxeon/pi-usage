@@ -1,4 +1,4 @@
-# pi-balance
+# pi-usage
 
 在 [Pi](https://pi.dev) 中查看当前模型所属提供商的余额或订阅额度。
 
@@ -8,7 +8,7 @@
 ## 安装
 
 ```sh
-pi install git:github.com/huxeon/pi-balance
+pi install git:github.com/huxeon/pi-usage
 ```
 
 安装后，在 Pi 中执行 `/reload` 或重新启动。需要 Node.js 22.19+，基于 Pi 1.4.0 开发和测试。
@@ -18,7 +18,7 @@ pi install git:github.com/huxeon/pi-balance
 用 `/model` 选中 DeepSeek 或 OpenAI Codex 的模型，然后执行：
 
 ```text
-/balance
+/usage
 ```
 
 命令不带参数，只查询**当前模型的提供商**。如果尚未选中模型，或当前提供商不受支持（例如 `openai`，不是 `openai-codex`），会显示提示，不发起请求。
@@ -71,8 +71,8 @@ RPC 模式以文本通知展示结果；无 UI 模式不执行查询。
 ## 本地开发
 
 ```sh
-git clone https://github.com/huxeon/pi-balance.git
-cd pi-balance
+git clone https://github.com/huxeon/pi-usage.git
+cd pi-usage
 npm ci --ignore-scripts
 npm run check
 npm test
